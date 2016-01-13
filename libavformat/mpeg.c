@@ -256,7 +256,7 @@ redo:
         if (avio_feof(s->pb))
             return AVERROR_EOF;
         // FIXME we should remember header_state
-        return FFERROR_REDO;
+        return AVERROR(EAGAIN);
     }
 
     if (startcode == PACK_START_CODE)
@@ -857,8 +857,7 @@ static int vobsub_read_header(AVFormatContext *s)
 
     for (i = 0; i < s->nb_streams; i++) {
         vobsub->q[i].sort = SUB_SORT_POS_TS;
-        vobsub->q[i].keep_duplicates = 1;
-        ff_subtitles_queue_finalize(s, &vobsub->q[i]);
+        ff_subtitles_queue_finalize(&vobsub->q[i]);
     }
 
     if (!av_bprint_is_complete(&header)) {
@@ -940,7 +939,7 @@ static int vobsub_read_packet(AVFormatContext *s, AVPacket *pkt)
         total_read += pkt_size;
 
         /* the current chunk doesn't match the stream index (unlikely) */
-        if ((startcode & 0x1f) != s->streams[idx_pkt.stream_index]->id)
+        if ((startcode & 0x1f) != idx_pkt.stream_index)
             break;
 
         ret = av_grow_packet(pkt, to_read);
@@ -956,12 +955,12 @@ static int vobsub_read_packet(AVFormatContext *s, AVPacket *pkt)
     pkt->pos = idx_pkt.pos;
     pkt->stream_index = idx_pkt.stream_index;
 
-    av_packet_unref(&idx_pkt);
+    av_free_packet(&idx_pkt);
     return 0;
 
 fail:
-    av_packet_unref(pkt);
-    av_packet_unref(&idx_pkt);
+    av_free_packet(pkt);
+    av_free_packet(&idx_pkt);
     return ret;
 }
 

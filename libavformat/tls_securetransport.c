@@ -350,9 +350,8 @@ static int map_ssl_error(OSStatus status, size_t processed)
 static int tls_read(URLContext *h, uint8_t *buf, int size)
 {
     TLSContext *c = h->priv_data;
-    size_t processed = 0;
-    int ret = SSLRead(c->ssl_context, buf, size, &processed);
-    ret = map_ssl_error(ret, processed);
+    size_t processed;
+    int ret = map_ssl_error(SSLRead(c->ssl_context, buf, size, &processed), processed);
     if (ret > 0)
         return ret;
     if (ret == 0)
@@ -363,9 +362,8 @@ static int tls_read(URLContext *h, uint8_t *buf, int size)
 static int tls_write(URLContext *h, const uint8_t *buf, int size)
 {
     TLSContext *c = h->priv_data;
-    size_t processed = 0;
-    int ret = SSLWrite(c->ssl_context, buf, size, &processed);
-    ret = map_ssl_error(ret, processed);
+    size_t processed;
+    int ret = map_ssl_error(SSLWrite(c->ssl_context, buf, size, &processed), processed);
     if (ret > 0)
         return ret;
     if (ret == 0)

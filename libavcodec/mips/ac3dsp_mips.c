@@ -59,7 +59,7 @@
 #include "libavutil/mips/asmdefs.h"
 
 #if HAVE_INLINE_ASM
-#if HAVE_MIPSDSP
+#if HAVE_MIPSDSPR1
 static void ac3_bit_alloc_calc_bap_mips(int16_t *mask, int16_t *psd,
                                         int start, int end,
                                         int snr_offset, int floor,
@@ -400,7 +400,7 @@ static void ac3_downmix_mips(float **samples, float (*matrix)[2],
 
 void ff_ac3dsp_init_mips(AC3DSPContext *c, int bit_exact) {
 #if HAVE_INLINE_ASM
-#if HAVE_MIPSDSP
+#if HAVE_MIPSDSPR1
     c->bit_alloc_calc_bap = ac3_bit_alloc_calc_bap_mips;
     c->update_bap_counts  = ac3_update_bap_counts_mips;
 #endif

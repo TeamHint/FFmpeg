@@ -288,7 +288,7 @@ static int vmd_read_packet(AVFormatContext *s,
             frame->frame_size);
 
     if (ret != frame->frame_size) {
-        av_packet_unref(pkt);
+        av_free_packet(pkt);
         ret = AVERROR(EIO);
     }
     pkt->stream_index = frame->stream_index;

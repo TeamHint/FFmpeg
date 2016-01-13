@@ -77,10 +77,8 @@ cglobal stack_clobber, 1,2
 
 %if WIN64
     %assign free_regs 7
-    DECLARE_REG_TMP 4
 %else
     %assign free_regs 9
-    DECLARE_REG_TMP 7
 %endif
 
 ;-----------------------------------------------------------------------------
@@ -88,7 +86,7 @@ cglobal stack_clobber, 1,2
 ;-----------------------------------------------------------------------------
 INIT_XMM
 cglobal checked_call, 2,15,16,max_args*8+8
-    mov  t0, r0
+    mov  r6, r0
 
     ; All arguments have been pushed on the stack instead of registers in order to
     ; test for incorrect assumptions that 32-bit ints are zero-extended to 64-bit.
@@ -131,7 +129,7 @@ cglobal checked_call, 2,15,16,max_args*8+8
     mov r %+ i, [n %+ i]
     %assign i i-1
 %endrep
-    call t0
+    call r6
 %assign i 14
 %rep 15-free_regs
     xor r %+ i, [n %+ i]
@@ -158,7 +156,6 @@ cglobal checked_call, 2,15,16,max_args*8+8
     mov  r9, rax
     mov r10, rdx
     lea  r0, [error_message]
-    xor eax, eax
     call fail_func
     mov rdx, r10
     mov rax, r9

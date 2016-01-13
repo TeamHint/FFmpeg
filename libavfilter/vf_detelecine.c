@@ -116,15 +116,14 @@ static av_cold int init(AVFilterContext *ctx)
 static int query_formats(AVFilterContext *ctx)
 {
     AVFilterFormats *pix_fmts = NULL;
-    int fmt, ret;
+    int fmt;
 
     for (fmt = 0; av_pix_fmt_desc_get(fmt); fmt++) {
         const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(fmt);
         if (!(desc->flags & AV_PIX_FMT_FLAG_HWACCEL ||
               desc->flags & AV_PIX_FMT_FLAG_PAL     ||
-              desc->flags & AV_PIX_FMT_FLAG_BITSTREAM) &&
-             (ret = ff_add_format(&pix_fmts, fmt)) < 0)
-            return ret;
+              desc->flags & AV_PIX_FMT_FLAG_BITSTREAM))
+            ff_add_format(&pix_fmts, fmt);
     }
 
     return ff_set_common_formats(ctx, pix_fmts);
@@ -171,6 +170,7 @@ static int config_output(AVFilterLink *outlink)
     av_log(ctx, AV_LOG_VERBOSE, "FPS: %d/%d -> %d/%d\n",
            inlink->frame_rate.num, inlink->frame_rate.den, fps.num, fps.den);
 
+    outlink->flags |= FF_LINK_FLAG_REQUEST_LOOP;
     outlink->frame_rate = fps;
     outlink->time_base = av_mul_q(inlink->time_base, s->pts);
     av_log(ctx, AV_LOG_VERBOSE, "TB: %d/%d -> %d/%d\n",

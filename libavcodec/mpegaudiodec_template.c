@@ -1172,9 +1172,9 @@ found2:
 #   include "mips/compute_antialias_float.h"
 #endif /* HAVE_MIPSFPU */
 #else
-#if HAVE_MIPSDSP
+#if HAVE_MIPSDSPR1
 #   include "mips/compute_antialias_fixed.h"
-#endif /* HAVE_MIPSDSP */
+#endif /* HAVE_MIPSDSPR1 */
 #endif /* USE_FLOATS */
 
 #ifndef compute_antialias
@@ -1657,11 +1657,9 @@ static int decode_frame(AVCodecContext * avctx, void *data, int *got_frame_ptr,
     uint32_t header;
     int ret;
 
-    int skipped = 0;
     while(buf_size && !*buf){
         buf++;
         buf_size--;
-        skipped++;
     }
 
     if (buf_size < HEADER_SIZE)
@@ -1716,7 +1714,7 @@ static int decode_frame(AVCodecContext * avctx, void *data, int *got_frame_ptr,
             return ret;
     }
     s->frame_size = 0;
-    return buf_size + skipped;
+    return buf_size;
 }
 
 static void mp_flush(MPADecodeContext *ctx)

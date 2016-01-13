@@ -121,13 +121,11 @@ void ff_avg_approx_pixels8_xy2_3dnow(uint8_t *block, const uint8_t *pixels,
 #undef PAVGB
 #undef STATIC
 
-#if HAVE_MMX
 CALL_2X_PIXELS(avg_no_rnd_pixels16_y2_mmx, avg_no_rnd_pixels8_y2_mmx, 8)
 CALL_2X_PIXELS(put_no_rnd_pixels16_y2_mmx, put_no_rnd_pixels8_y2_mmx, 8)
 
 CALL_2X_PIXELS(avg_no_rnd_pixels16_xy2_mmx, avg_no_rnd_pixels8_xy2_mmx, 8)
 CALL_2X_PIXELS(put_no_rnd_pixels16_xy2_mmx, put_no_rnd_pixels8_xy2_mmx, 8)
-#endif
 
 /***********************************/
 /* MMX rounding */
@@ -150,13 +148,11 @@ CALL_2X_PIXELS(put_no_rnd_pixels16_xy2_mmx, put_no_rnd_pixels8_xy2_mmx, 8)
 #undef PAVGBP
 #undef PAVGB
 
-#if HAVE_MMX
 CALL_2X_PIXELS(avg_pixels16_y2_mmx, avg_pixels8_y2_mmx, 8)
 CALL_2X_PIXELS(put_pixels16_y2_mmx, put_pixels8_y2_mmx, 8)
 
 CALL_2X_PIXELS_EXPORT(ff_avg_pixels16_xy2_mmx, ff_avg_pixels8_xy2_mmx, 8)
 CALL_2X_PIXELS_EXPORT(ff_put_pixels16_xy2_mmx, ff_put_pixels8_xy2_mmx, 8)
-#endif
 
 #endif /* HAVE_INLINE_ASM */
 

@@ -78,7 +78,7 @@ static int query_formats(AVFilterContext *ctx)
     int64_t inlayout[SWR_CH_MAX], outlayout = 0;
     AVFilterFormats *formats;
     AVFilterChannelLayouts *layouts;
-    int i, ret, overlap = 0, nb_ch = 0;
+    int i, overlap = 0, nb_ch = 0;
 
     for (i = 0; i < s->nb_inputs; i++) {
         if (!ctx->inputs[i]->in_channel_layouts ||
@@ -125,22 +125,17 @@ static int query_formats(AVFilterContext *ctx)
                     *(route[i]++) = out_ch_number++;
     }
     formats = ff_make_format_list(ff_packed_sample_fmts_array);
-    if ((ret = ff_set_common_formats(ctx, formats)) < 0)
-        return ret;
+    ff_set_common_formats(ctx, formats);
     for (i = 0; i < s->nb_inputs; i++) {
         layouts = NULL;
-        if ((ret = ff_add_channel_layout(&layouts, inlayout[i])) < 0)
-            return ret;
-        if ((ret = ff_channel_layouts_ref(layouts, &ctx->inputs[i]->out_channel_layouts)) < 0)
-            return ret;
+        ff_add_channel_layout(&layouts, inlayout[i]);
+        ff_channel_layouts_ref(layouts, &ctx->inputs[i]->out_channel_layouts);
     }
     layouts = NULL;
-    if ((ret = ff_add_channel_layout(&layouts, outlayout)) < 0)
-        return ret;
-    if ((ret = ff_channel_layouts_ref(layouts, &ctx->outputs[0]->in_channel_layouts)) < 0)
-        return ret;
-
-    return ff_set_common_samplerates(ctx, ff_all_samplerates());
+    ff_add_channel_layout(&layouts, outlayout);
+    ff_channel_layouts_ref(layouts, &ctx->outputs[0]->in_channel_layouts);
+    ff_set_common_samplerates(ctx, ff_all_samplerates());
+    return 0;
 }
 
 static int config_output(AVFilterLink *outlink)

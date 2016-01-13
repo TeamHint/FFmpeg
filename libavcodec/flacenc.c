@@ -340,10 +340,9 @@ static av_cold int flac_encode_init(AVCodecContext *avctx)
     } else if (avctx->min_prediction_order >= 0) {
         if (s->options.lpc_type == FF_LPC_TYPE_FIXED) {
             if (avctx->min_prediction_order > MAX_FIXED_ORDER) {
-                av_log(avctx, AV_LOG_WARNING,
-                       "invalid min prediction order %d, clamped to %d\n",
-                       avctx->min_prediction_order, MAX_FIXED_ORDER);
-                avctx->min_prediction_order = MAX_FIXED_ORDER;
+                av_log(avctx, AV_LOG_ERROR, "invalid min prediction order: %d\n",
+                       avctx->min_prediction_order);
+                return AVERROR(EINVAL);
             }
         } else if (avctx->min_prediction_order < MIN_LPC_ORDER ||
                    avctx->min_prediction_order > MAX_LPC_ORDER) {
@@ -358,10 +357,9 @@ static av_cold int flac_encode_init(AVCodecContext *avctx)
     } else if (avctx->max_prediction_order >= 0) {
         if (s->options.lpc_type == FF_LPC_TYPE_FIXED) {
             if (avctx->max_prediction_order > MAX_FIXED_ORDER) {
-                av_log(avctx, AV_LOG_WARNING,
-                       "invalid max prediction order %d, clamped to %d\n",
-                       avctx->max_prediction_order, MAX_FIXED_ORDER);
-                avctx->max_prediction_order = MAX_FIXED_ORDER;
+                av_log(avctx, AV_LOG_ERROR, "invalid max prediction order: %d\n",
+                       avctx->max_prediction_order);
+                return AVERROR(EINVAL);
             }
         } else if (avctx->max_prediction_order < MIN_LPC_ORDER ||
                    avctx->max_prediction_order > MAX_LPC_ORDER) {
@@ -1067,7 +1065,7 @@ static void remove_wasted_bits(FlacEncodeContext *s)
         }
 
         if (v && !(v & 1)) {
-            v = ff_ctz(v);
+            v = av_ctz(v);
 
             for (i = 0; i < s->frame.blocksize; i++)
                 sub->samples[i] >>= v;
@@ -1348,13 +1346,7 @@ static int flac_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
         av_md5_final(s->md5ctx, s->md5sum);
         write_streaminfo(s, avctx->extradata);
 
-#if FF_API_SIDEDATA_ONLY_PKT
-FF_DISABLE_DEPRECATION_WARNINGS
         if (avctx->side_data_only_packets && !s->flushed) {
-FF_ENABLE_DEPRECATION_WARNINGS
-#else
-        if (!s->flushed) {
-#endif
             uint8_t *side_data = av_packet_new_side_data(avpkt, AV_PKT_DATA_NEW_EXTRADATA,
                                                          avctx->extradata_size);
             if (!side_data)
@@ -1462,16 +1454,16 @@ static const AVOption options[] = {
 { "left_side",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = FLAC_CHMODE_LEFT_SIDE   }, INT_MIN, INT_MAX, FLAGS, "ch_mode" },
 { "right_side", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = FLAC_CHMODE_RIGHT_SIDE  }, INT_MIN, INT_MAX, FLAGS, "ch_mode" },
 { "mid_side",   NULL, 0, AV_OPT_TYPE_CONST, { .i64 = FLAC_CHMODE_MID_SIDE    }, INT_MIN, INT_MAX, FLAGS, "ch_mode" },
-{ "exact_rice_parameters", "Calculate rice parameters exactly", offsetof(FlacEncodeContext, options.exact_rice_parameters), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS },
-{ "multi_dim_quant",       "Multi-dimensional quantization",    offsetof(FlacEncodeContext, options.multi_dim_quant),       AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS },
+{ "exact_rice_parameters", "Calculate rice parameters exactly", offsetof(FlacEncodeContext, options.exact_rice_parameters), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS },
+{ "multi_dim_quant",       "Multi-dimensional quantization",    offsetof(FlacEncodeContext, options.multi_dim_quant),       AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS },
 { NULL },
 };
 
 static const AVClass flac_encoder_class = {
-    .class_name = "FLAC encoder",
-    .item_name  = av_default_item_name,
-    .option     = options,
-    .version    = LIBAVUTIL_VERSION_INT,
+    "FLAC encoder",
+    av_default_item_name,
+    options,
+    LIBAVUTIL_VERSION_INT,
 };
 
 AVCodec ff_flac_encoder = {

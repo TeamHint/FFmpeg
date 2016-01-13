@@ -29,7 +29,7 @@
 #include "libavcodec/aac_defines.h"
 
 #if USE_FIXED
-#define CBRT(x) lrint((x).f * 8192)
+#define CBRT(x) (int)floor((x).f * 8192 + 0.5)
 #else
 #define CBRT(x) x.i
 #endif
@@ -49,12 +49,13 @@ static av_cold void AAC_RENAME(cbrt_tableinit)(void)
 {
     if (!cbrt_tab[(1<<13) - 1]) {
         int i;
+        /* cbrtf() isn't available on all systems, so we use powf(). */
         for (i = 0; i < 1<<13; i++) {
             union {
                 float f;
                 uint32_t i;
             } f;
-            f.f = cbrt(i) * i;
+            f.f = pow(i, 1.0 / 3.0) * i;
             cbrt_tab[i] = CBRT(f);
         }
     }

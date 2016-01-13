@@ -85,8 +85,7 @@ static int xwma_read_header(AVFormatContext *s)
      * extradata for that. Thus, ask the user for feedback, but try to go on
      * anyway.
      */
-    if (st->codec->codec_id != AV_CODEC_ID_WMAV2 &&
-        st->codec->codec_id != AV_CODEC_ID_WMAPRO) {
+    if (st->codec->codec_id != AV_CODEC_ID_WMAV2) {
         avpriv_request_sample(s, "Unexpected codec (tag 0x04%x; id %d)",
                               st->codec->codec_tag, st->codec->codec_id);
     } else {
@@ -104,13 +103,6 @@ static int xwma_read_header(AVFormatContext *s)
              */
             avpriv_request_sample(s, "Unexpected extradata (%d bytes)",
                                   st->codec->extradata_size);
-        } else if (st->codec->codec_id == AV_CODEC_ID_WMAPRO) {
-            if (ff_alloc_extradata(st->codec, 18))
-                return AVERROR(ENOMEM);
-
-            memset(st->codec->extradata, 0, st->codec->extradata_size);
-            st->codec->extradata[ 0] = st->codec->bits_per_coded_sample;
-            st->codec->extradata[14] = 224;
         } else {
             if (ff_alloc_extradata(st->codec, 6))
                 return AVERROR(ENOMEM);

@@ -116,12 +116,12 @@ void ff_lpc_init_x86(LPCContext *s);
 void ff_lpc_end(LPCContext *s);
 
 #if USE_FIXED
-typedef int LPC_TYPE;
+#define LPC_TYPE int
 #else
 #ifdef LPC_USE_DOUBLE
-typedef double LPC_TYPE;
+#define LPC_TYPE double
 #else
-typedef float LPC_TYPE;
+#define LPC_TYPE float
 #endif
 #endif // USE_FIXED
 

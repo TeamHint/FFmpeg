@@ -53,6 +53,7 @@ typedef struct {
     int buf_idx;
     int16_t *buf_idy;    /* y coordinate of previous sample for each channel */
     AVFrame *outpicref;
+    int req_fullfilled;
     int n;
     int sample_count_mod;
     int mode;                   ///< ShowWavesMode
@@ -82,7 +83,7 @@ static const AVOption showwaves_options[] = {
     { "n",    "set how many samples to show in the same point", OFFSET(n), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS },
     { "rate", "set video rate", OFFSET(rate), AV_OPT_TYPE_VIDEO_RATE, {.str = "25"}, 0, 0, FLAGS },
     { "r",    "set video rate", OFFSET(rate), AV_OPT_TYPE_VIDEO_RATE, {.str = "25"}, 0, 0, FLAGS },
-    { "split_channels", "draw channels separately", OFFSET(split_channels), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, FLAGS },
+    { "split_channels", "draw channels separately", OFFSET(split_channels), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, FLAGS },
     { NULL }
 };
 
@@ -117,25 +118,28 @@ static int query_formats(AVFilterContext *ctx)
     AVFilterLink *outlink = ctx->outputs[0];
     static const enum AVSampleFormat sample_fmts[] = { AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE };
     static const enum AVPixelFormat pix_fmts[] = { AV_PIX_FMT_GRAY8, AV_PIX_FMT_NONE };
-    int ret;
 
     /* set input audio formats */
     formats = ff_make_format_list(sample_fmts);
-    if ((ret = ff_formats_ref(formats, &inlink->out_formats)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &inlink->out_formats);
 
     layouts = ff_all_channel_layouts();
-    if ((ret = ff_channel_layouts_ref(layouts, &inlink->out_channel_layouts)) < 0)
-        return ret;
+    if (!layouts)
+        return AVERROR(ENOMEM);
+    ff_channel_layouts_ref(layouts, &inlink->out_channel_layouts);
 
     formats = ff_all_samplerates();
-    if ((ret = ff_formats_ref(formats, &inlink->out_samplerates)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &inlink->out_samplerates);
 
     /* set output video format */
     formats = ff_make_format_list(pix_fmts);
-    if ((ret = ff_formats_ref(formats, &outlink->in_formats)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &outlink->in_formats);
 
     return 0;
 }
@@ -175,7 +179,8 @@ inline static int push_frame(AVFilterLink *outlink)
     int nb_channels = inlink->channels;
     int ret, i;
 
-    ret = ff_filter_frame(outlink, showwaves->outpicref);
+    if ((ret = ff_filter_frame(outlink, showwaves->outpicref)) >= 0)
+        showwaves->req_fullfilled = 1;
     showwaves->outpicref = NULL;
     showwaves->buf_idx = 0;
     for (i = 0; i < nb_channels; i++)
@@ -243,7 +248,11 @@ static int request_frame(AVFilterLink *outlink)
     AVFilterLink *inlink = outlink->src->inputs[0];
     int ret;
 
-    ret = ff_request_frame(inlink);
+    showwaves->req_fullfilled = 0;
+    do {
+        ret = ff_request_frame(inlink);
+    } while (!showwaves->req_fullfilled && ret >= 0);
+
     if (ret == AVERROR_EOF && showwaves->outpicref) {
         if (showwaves->single_pic)
             push_single_pic(outlink);
@@ -436,7 +445,7 @@ AVFilter ff_avf_showwaves = {
 static const AVOption showwavespic_options[] = {
     { "size", "set video size", OFFSET(w), AV_OPT_TYPE_IMAGE_SIZE, {.str = "600x240"}, 0, 0, FLAGS },
     { "s",    "set video size", OFFSET(w), AV_OPT_TYPE_IMAGE_SIZE, {.str = "600x240"}, 0, 0, FLAGS },
-    { "split_channels", "draw channels separately", OFFSET(split_channels), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, FLAGS },
+    { "split_channels", "draw channels separately", OFFSET(split_channels), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, FLAGS },
     { NULL }
 };
 

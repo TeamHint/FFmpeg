@@ -23,10 +23,17 @@
 #include "libavutil/fifo.h"
 #include "libavutil/avassert.h"
 #include "libavutil/imgutils.h"
-#include "libavutil/thread.h"
 #include "avcodec.h"
 #include "internal.h"
 #include "thread.h"
+
+#if HAVE_PTHREADS
+#include <pthread.h>
+#elif HAVE_W32THREADS
+#include "compat/w32pthreads.h"
+#elif HAVE_OS2THREADS
+#include "compat/os2threads.h"
+#endif
 
 #define MAX_THREADS 64
 #define BUFFER_SIZE (2*MAX_THREADS)

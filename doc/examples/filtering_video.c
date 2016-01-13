@@ -33,6 +33,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavfilter/avfiltergraph.h>
+#include <libavfilter/avcodec.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/opt.h>
@@ -262,7 +263,7 @@ int main(int argc, char **argv)
                 av_frame_unref(frame);
             }
         }
-        av_packet_unref(&packet);
+        av_free_packet(&packet);
     }
 end:
     avfilter_graph_free(&filter_graph);

@@ -110,21 +110,9 @@ struct AVFormatInternal {
      */
     AVRational offset_timebase;
 
-#if FF_API_COMPUTE_PKT_FIELDS2
-    int missing_ts_warning;
-#endif
-
     int inject_global_side_data;
 
     int avoid_negative_ts_use_pts;
-};
-
-struct AVStreamInternal {
-    /**
-     * Set to 1 if the codec allows reordering, so pts can be different
-     * from dts.
-     */
-    int reorder;
 };
 
 #ifdef __GNUC__
@@ -155,6 +143,8 @@ char *ff_data_to_hex(char *buf, const uint8_t *src, int size, int lowercase);
  * @return the number of bytes written (or to be written, if data is null)
  */
 int ff_hex_to_data(uint8_t *data, const char *p);
+
+void ff_program_add_stream_index(AVFormatContext *ac, int progid, unsigned int idx);
 
 /**
  * Add packet to AVFormatContext->packet_buffer list, determining its
@@ -386,7 +376,7 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt);
  * Interleave a packet per dts in an output media file.
  *
  * Packets with pkt->destruct == av_destruct_packet will be freed inside this
- * function, so they cannot be used after it. Note that calling av_packet_unref()
+ * function, so they cannot be used after it. Note that calling av_free_packet()
  * on them is still safe.
  *
  * @param s media file handle
@@ -466,6 +456,13 @@ static inline int ff_rename(const char *oldpath, const char *newpath, void *logc
 }
 
 /**
+ * Add new side data to a stream. If a side data of this type already exists, it
+ * is replaced.
+ */
+uint8_t *ff_stream_new_side_data(AVStream *st, enum AVPacketSideDataType type,
+                                 int size);
+
+/**
  * Allocate extradata with additional AV_INPUT_BUFFER_PADDING_SIZE at end
  * which is always set to 0.
  *
@@ -513,11 +510,5 @@ int ff_copy_whitelists(AVFormatContext *dst, AVFormatContext *src);
 
 int ffio_open2_wrapper(struct AVFormatContext *s, AVIOContext **pb, const char *url, int flags,
                        const AVIOInterruptCB *int_cb, AVDictionary **options);
-
-/**
- * Returned by demuxers to indicate that data was consumed but discarded
- * (ignored streams or junk data). The framework will re-call the demuxer.
- */
-#define FFERROR_REDO FFERRTAG('R','E','D','O')
 
 #endif /* AVFORMAT_INTERNAL_H */

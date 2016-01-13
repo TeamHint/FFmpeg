@@ -21,7 +21,6 @@
  */
 
 #include "mpegutils.h"
-#include "mpegvideo.h"
 #include "vaapi_internal.h"
 #include "internal.h"
 

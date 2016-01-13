@@ -57,7 +57,6 @@
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
-#include "libavutil/qsort.h"
 
 #include "deshake.h"
 #include "deshake_opencl.h"
@@ -86,15 +85,15 @@ static const AVOption deshake_options[] = {
         { "exhaustive", "exhaustive search",      0, AV_OPT_TYPE_CONST, {.i64=EXHAUSTIVE},       INT_MIN, INT_MAX, FLAGS, "smode" },
         { "less",       "less exhaustive search", 0, AV_OPT_TYPE_CONST, {.i64=SMART_EXHAUSTIVE}, INT_MIN, INT_MAX, FLAGS, "smode" },
     { "filename", "set motion search detailed log file name", OFFSET(filename), AV_OPT_TYPE_STRING, {.str=NULL}, .flags = FLAGS },
-    { "opencl", "use OpenCL filtering capabilities", OFFSET(opencl), AV_OPT_TYPE_BOOL, {.i64=0}, 0, 1, .flags = FLAGS },
+    { "opencl", "use OpenCL filtering capabilities", OFFSET(opencl), AV_OPT_TYPE_INT, {.i64=0}, 0, 1, .flags = FLAGS },
     { NULL }
 };
 
 AVFILTER_DEFINE_CLASS(deshake);
 
-static int cmp(const void *a, const void *b)
+static int cmp(const double *a, const double *b)
 {
-    return FFDIFFSIGN(*(const double *)a, *(const double *)b);
+    return *a < *b ? -1 : ( *a > *b ? 1 : 0 );
 }
 
 /**
@@ -106,7 +105,7 @@ static double clean_mean(double *values, int count)
     int cut = count / 5;
     int x;
 
-    AV_QSORT(values, count, double, cmp);
+    qsort(values, count, sizeof(double), (void*)cmp);
 
     for (x = cut; x < count - cut; x++) {
         mean += values[x];

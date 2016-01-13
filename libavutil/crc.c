@@ -312,9 +312,9 @@ int av_crc_init(AVCRC *ctx, int le, int bits, uint32_t poly, int ctx_size)
     uint32_t c;
 
     if (bits < 8 || bits > 32 || poly >= (1LL << bits))
-        return AVERROR(EINVAL);
+        return -1;
     if (ctx_size != sizeof(AVCRC) * 257 && ctx_size != sizeof(AVCRC) * 1024)
-        return AVERROR(EINVAL);
+        return -1;
 
     for (i = 0; i < 256; i++) {
         if (le) {

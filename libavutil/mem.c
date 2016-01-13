@@ -501,7 +501,3 @@ void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size)
     ff_fast_malloc(ptr, size, min_size, 0);
 }
 
-void av_fast_mallocz(void *ptr, unsigned int *size, size_t min_size)
-{
-    ff_fast_malloc(ptr, size, min_size, 1);
-}

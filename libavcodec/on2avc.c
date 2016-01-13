@@ -211,16 +211,9 @@ static inline int get_egolomb(GetBitContext *gb)
 {
     int v = 4;
 
-    while (get_bits1(gb)) {
-        v++;
-        if (v > 30) {
-            av_log(NULL, AV_LOG_WARNING, "Too large golomb code in get_egolomb.\n");
-            v = 30;
-            break;
-        }
-    }
+    while (get_bits1(gb)) v++;
 
-    return (1 << v) + get_bits_long(gb, v);
+    return (1 << v) + get_bits(gb, v);
 }
 
 static int on2avc_decode_pairs(On2AVCContext *c, GetBitContext *gb, float *dst,

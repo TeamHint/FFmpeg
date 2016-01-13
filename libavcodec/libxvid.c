@@ -25,23 +25,17 @@
  * @author Adam Thayer (krevnik@comcast.net)
  */
 
-#include <stdio.h>
-#include <string.h>
 #include <xvid.h>
 
-#include "libavutil/avassert.h"
 #include "libavutil/cpu.h"
 #include "libavutil/file.h"
-#include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mathematics.h"
-#include "libavutil/mem.h"
-#include "libavutil/opt.h"
 
 #include "avcodec.h"
 #include "internal.h"
 #include "libxvid.h"
-#include "mpegutils.h"
+#include "mpegvideo.h"
 
 #if HAVE_UNISTD_H
 #include <unistd.h>
@@ -842,7 +836,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         return 0;
     } else {
         if (!user_packet)
-            av_packet_unref(pkt);
+            av_free_packet(pkt);
         if (!xerr)
             return 0;
         av_log(avctx, AV_LOG_ERROR,

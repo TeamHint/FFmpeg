@@ -383,6 +383,6 @@ AVCodec ff_libschroedinger_decoder = {
     .init           = libschroedinger_decode_init,
     .close          = libschroedinger_decode_close,
     .decode         = libschroedinger_decode_frame,
-    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_DR1,
+    .capabilities   = AV_CODEC_CAP_DELAY,
     .flush          = libschroedinger_flush,
 };

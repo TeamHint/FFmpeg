@@ -459,7 +459,7 @@ av_cold int av_cast5_init(AVCAST5* cs, const uint8_t *key, int key_bits)
     int i;
     uint32_t p[4], q[4];
     if (key_bits % 8 || key_bits < 40 || key_bits > 128)
-        return AVERROR(EINVAL);
+        return -1;
     memset(newKey, 0, sizeof(newKey));
     memcpy(newKey, key, key_bits >> 3);
 

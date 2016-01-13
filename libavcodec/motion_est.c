@@ -599,7 +599,7 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
     int same=1;
     const int stride= c->stride;
     uint8_t *mv_penalty= c->current_mv_penalty;
-    int safety_clipping= s->unrestricted_mv && (s->width&15) && (s->height&15);
+    int saftey_cliping= s->unrestricted_mv && (s->width&15) && (s->height&15);
 
     init_mv4_ref(c);
 
@@ -611,7 +611,7 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
         const int mot_stride = s->b8_stride;
         const int mot_xy = s->block_index[block];
 
-        if(safety_clipping){
+        if(saftey_cliping){
             c->xmax = - 16*s->mb_x + s->width  - 8*(block &1);
             c->ymax = - 16*s->mb_y + s->height - 8*(block>>1);
         }
@@ -643,7 +643,7 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
         }
         P_MV1[0]= mx;
         P_MV1[1]= my;
-        if(safety_clipping)
+        if(saftey_cliping)
             for(i=1; i<10; i++){
                 if (s->first_slice_line && block<2 && i>1 && i<9)
                     continue;

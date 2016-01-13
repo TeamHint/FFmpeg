@@ -34,19 +34,17 @@
 #include "internal.h"
 
 enum DisplayMode    { LINE, BAR, DOT, NB_MODES };
-enum ChannelMode    { COMBINED, SEPARATE, NB_CMODES };
 enum FrequencyScale { FS_LINEAR, FS_LOG, FS_RLOG, NB_FSCALES };
 enum AmplitudeScale { AS_LINEAR, AS_SQRT, AS_CBRT, AS_LOG, NB_ASCALES };
 enum WindowFunc     { WFUNC_RECT, WFUNC_HANNING, WFUNC_HAMMING, WFUNC_BLACKMAN,
                       WFUNC_BARTLETT, WFUNC_WELCH, WFUNC_FLATTOP,
                       WFUNC_BHARRIS, WFUNC_BNUTTALL, WFUNC_SINE, WFUNC_NUTTALL,
-                      WFUNC_BHANN, WFUNC_LANCZOS, WFUNC_GAUSS, NB_WFUNC };
+                      WFUNC_BHANN, NB_WFUNC };
 
 typedef struct ShowFreqsContext {
     const AVClass *class;
     int w, h;
     int mode;
-    int cmode;
     int fft_bits;
     int ascale, fscale;
     int avg;
@@ -112,14 +110,9 @@ static const AVOption showfreqs_options[] = {
         { "bhann",    "Bartlett-Hann",    0, AV_OPT_TYPE_CONST, {.i64=WFUNC_BHANN},    0, 0, FLAGS, "win_func" },
         { "sine",     "Sine",             0, AV_OPT_TYPE_CONST, {.i64=WFUNC_SINE},     0, 0, FLAGS, "win_func" },
         { "nuttall",  "Nuttall",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_NUTTALL},  0, 0, FLAGS, "win_func" },
-        { "lanczos",  "Lanczos",          0, AV_OPT_TYPE_CONST, {.i64=WFUNC_LANCZOS},  0, 0, FLAGS, "win_func" },
-        { "gauss",    "Gauss",            0, AV_OPT_TYPE_CONST, {.i64=WFUNC_GAUSS},    0, 0, FLAGS, "win_func" },
     { "overlap",  "set window overlap", OFFSET(overlap), AV_OPT_TYPE_FLOAT, {.dbl=1.}, 0., 1., FLAGS },
     { "averaging", "set time averaging", OFFSET(avg), AV_OPT_TYPE_INT, {.i64=1}, 0, INT32_MAX, FLAGS },
     { "colors", "set channels colors", OFFSET(colors), AV_OPT_TYPE_STRING, {.str = "red|green|blue|yellow|orange|lime|pink|magenta|brown" }, 0, 0, FLAGS },
-    { "cmode", "set channel mode", OFFSET(cmode), AV_OPT_TYPE_INT, {.i64=COMBINED}, 0, NB_CMODES-1, FLAGS, "cmode" },
-        { "combined", "show all channels in same window",  0, AV_OPT_TYPE_CONST, {.i64=COMBINED}, 0, 0, FLAGS, "cmode" },
-        { "separate", "show each channel in own window",   0, AV_OPT_TYPE_CONST, {.i64=SEPARATE}, 0, 0, FLAGS, "cmode" },
     { NULL }
 };
 
@@ -133,25 +126,28 @@ static int query_formats(AVFilterContext *ctx)
     AVFilterLink *outlink = ctx->outputs[0];
     static const enum AVSampleFormat sample_fmts[] = { AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_NONE };
     static const enum AVPixelFormat pix_fmts[] = { AV_PIX_FMT_RGBA, AV_PIX_FMT_NONE };
-    int ret;
 
     /* set input audio formats */
     formats = ff_make_format_list(sample_fmts);
-    if ((ret = ff_formats_ref(formats, &inlink->out_formats)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &inlink->out_formats);
 
     layouts = ff_all_channel_layouts();
-    if ((ret = ff_channel_layouts_ref(layouts, &inlink->out_channel_layouts)) < 0)
-        return ret;
+    if (!layouts)
+        return AVERROR(ENOMEM);
+    ff_channel_layouts_ref(layouts, &inlink->out_channel_layouts);
 
     formats = ff_all_samplerates();
-    if ((ret = ff_formats_ref(formats, &inlink->out_samplerates)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &inlink->out_samplerates);
 
     /* set output video format */
     formats = ff_make_format_list(pix_fmts);
-    if ((ret = ff_formats_ref(formats, &outlink->in_formats)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &outlink->in_formats);
 
     return 0;
 }
@@ -168,7 +164,7 @@ static void generate_window_func(float *lut, int N, int win_func, float *overlap
         break;
     case WFUNC_BARTLETT:
         for (n = 0; n < N; n++)
-            lut[n] = 1.-fabs((n-(N-1)/2.)/((N-1)/2.));
+            lut[n] = 1.-FFABS((n-(N-1)/2.)/((N-1)/2.));
         *overlap = 0.5;
         break;
     case WFUNC_HANNING:
@@ -212,7 +208,7 @@ static void generate_window_func(float *lut, int N, int win_func, float *overlap
         break;
     case WFUNC_BHANN:
         for (n = 0; n < N; n++)
-            lut[n] = 0.62-0.48*fabs(n/(double)(N-1)-.5)-0.38*cos(2*M_PI*n/(N-1));
+            lut[n] = 0.62-0.48*FFABS(n/(double)(N-1)-.5)-0.38*cos(2*M_PI*n/(N-1));
         *overlap = 0.5;
         break;
     case WFUNC_SINE:
@@ -224,18 +220,6 @@ static void generate_window_func(float *lut, int N, int win_func, float *overlap
         for (n = 0; n < N; n++)
             lut[n] = 0.355768-0.487396*cos(2*M_PI*n/(N-1))+0.144232*cos(4*M_PI*n/(N-1))-0.012604*cos(6*M_PI*n/(N-1));
         *overlap = 0.663;
-        break;
-    case WFUNC_LANCZOS:
-#define SINC(x) (!(x)) ? 1 : sin(M_PI * (x))/(M_PI * (x));
-        for (n = 0; n < N; n++)
-            lut[n] = SINC((2.*n)/(N-1)-1);
-        *overlap = 0.75;
-        break;
-    case WFUNC_GAUSS:
-#define SQR(x) ((x)*(x))
-        for (n = 0; n < N; n++)
-            lut[n] = exp(-0.5 * SQR((n-(N-1)/2)/(0.4*(N-1)/2.f)));
-        *overlap = 0.75;
         break;
     default:
         av_assert0(0);
@@ -303,6 +287,7 @@ static int config_output(AVFilterLink *outlink)
         s->scale += s->window_func_lut[i] * s->window_func_lut[i];
     }
 
+    outlink->flags |= FF_LINK_FLAG_REQUEST_LOOP;
     outlink->frame_rate = av_make_q(inlink->sample_rate, s->win_size * (1.-s->overlap));
     outlink->sample_aspect_ratio = (AVRational){1,1};
     outlink->w = s->w;
@@ -363,7 +348,6 @@ static inline void plot_freq(ShowFreqsContext *s, int ch,
     const float avg = s->avg_data[ch][f];
     const float bsize = get_bsize(s, f);
     const int sx = get_sx(s, f);
-    int end = outlink->h;
     int x, y, i;
 
     switch(s->ascale) {
@@ -380,16 +364,7 @@ static inline void plot_freq(ShowFreqsContext *s, int ch,
         a = 1.0 - a;
         break;
     }
-
-    switch (s->cmode) {
-    case COMBINED:
-        y = a * outlink->h - 1;
-        break;
-    case SEPARATE:
-        end = (outlink->h / s->nb_channels) * (ch + 1);
-        y = (outlink->h / s->nb_channels) * ch + a * (outlink->h / s->nb_channels) - 1;
-        break;
-    }
+    y = a * outlink->h - 1;
     if (y < 0)
         return;
 
@@ -425,7 +400,7 @@ static inline void plot_freq(ShowFreqsContext *s, int ch,
         break;
     case BAR:
         for (x = sx; x < sx + bsize && x < w; x++)
-            for (i = y; i < end; i++)
+            for (i = y; i < outlink->h; i++)
                 draw_dot(out, x, i, fg);
         break;
     case DOT:

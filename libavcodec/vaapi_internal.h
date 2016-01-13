@@ -27,7 +27,7 @@
 #include <va/va.h>
 #include "vaapi.h"
 #include "avcodec.h"
-#include "internal.h"
+#include "mpegvideo.h"
 
 /**
  * @addtogroup VAAPI_Decoding

@@ -563,7 +563,7 @@ static av_cold void cavsdsp_init_3dnow(CAVSDSPContext *c,
 
 av_cold void ff_cavsdsp_init_x86(CAVSDSPContext *c, AVCodecContext *avctx)
 {
-    av_unused int cpu_flags = av_get_cpu_flags();
+    int cpu_flags = av_get_cpu_flags();
 
     cavsdsp_init_mmx(c, avctx);
 #if HAVE_AMD3DNOW_INLINE

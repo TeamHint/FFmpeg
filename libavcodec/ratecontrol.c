@@ -35,6 +35,10 @@
 #include "mpegvideo.h"
 #include "libavutil/eval.h"
 
+#ifndef M_E
+#define M_E 2.718281828
+#endif
+
 static int init_pass2(MpegEncContext *s);
 static double get_qscale(MpegEncContext *s, RateControlEntry *rce,
                          double rate_factor, int frame_num);
@@ -233,12 +237,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
             return -1;
         }
 
-#if FF_API_RC_STRATEGY
-        av_assert0(MPV_RC_STRATEGY_XVID == FF_RC_STRATEGY_XVID);
-#endif
-
         // FIXME maybe move to end
-        if ((s->avctx->flags & AV_CODEC_FLAG_PASS2) && s->rc_strategy == MPV_RC_STRATEGY_XVID) {
+        if ((s->avctx->flags & AV_CODEC_FLAG_PASS2) && s->rc_strategy == 1) {
 #if CONFIG_LIBXVID
             return ff_xvid_rate_control_init(s);
 #else
@@ -318,7 +318,7 @@ av_cold void ff_rate_control_uninit(MpegEncContext *s)
     av_freep(&rcc->entry);
 
 #if CONFIG_LIBXVID
-    if ((s->avctx->flags & AV_CODEC_FLAG_PASS2) && s->rc_strategy == MPV_RC_STRATEGY_XVID)
+    if ((s->avctx->flags & AV_CODEC_FLAG_PASS2) && s->rc_strategy == 1)
         ff_xvid_rate_control_uninit(s);
 #endif
 }
@@ -771,7 +771,7 @@ float ff_rate_estimate_qscale(MpegEncContext *s, int dry_run)
     emms_c();
 
 #if CONFIG_LIBXVID
-    if ((s->avctx->flags & AV_CODEC_FLAG_PASS2) && s->rc_strategy == MPV_RC_STRATEGY_XVID)
+    if ((s->avctx->flags & AV_CODEC_FLAG_PASS2) && s->rc_strategy == 1)
         return ff_xvid_rate_estimate_qscale(s, dry_run);
 #endif
 

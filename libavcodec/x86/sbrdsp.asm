@@ -382,7 +382,6 @@ apply_noise_main:
 %else
 %define count m_maxq
 %endif
-    movsxdifnidn    noiseq, noised
     dec    noiseq
     shl    count, 2
 %ifdef PIC

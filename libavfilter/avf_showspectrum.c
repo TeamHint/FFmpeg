@@ -44,6 +44,7 @@ typedef struct {
     const AVClass *class;
     int w, h;
     AVFrame *outpicref;
+    int req_fullfilled;
     int nb_display_channels;
     int channel_height;
     int sliding;                ///< 1 if sliding mode, 0 otherwise
@@ -126,25 +127,28 @@ static int query_formats(AVFilterContext *ctx)
     AVFilterLink *outlink = ctx->outputs[0];
     static const enum AVSampleFormat sample_fmts[] = { AV_SAMPLE_FMT_S16P, AV_SAMPLE_FMT_NONE };
     static const enum AVPixelFormat pix_fmts[] = { AV_PIX_FMT_YUVJ444P, AV_PIX_FMT_NONE };
-    int ret;
 
     /* set input audio formats */
     formats = ff_make_format_list(sample_fmts);
-    if ((ret = ff_formats_ref(formats, &inlink->out_formats)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &inlink->out_formats);
 
     layouts = ff_all_channel_layouts();
-    if ((ret = ff_channel_layouts_ref(layouts, &inlink->out_channel_layouts)) < 0)
-        return ret;
+    if (!layouts)
+        return AVERROR(ENOMEM);
+    ff_channel_layouts_ref(layouts, &inlink->out_channel_layouts);
 
     formats = ff_all_samplerates();
-    if ((ret = ff_formats_ref(formats, &inlink->out_samplerates)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &inlink->out_samplerates);
 
     /* set output video format */
     formats = ff_make_format_list(pix_fmts);
-    if ((ret = ff_formats_ref(formats, &outlink->in_formats)) < 0)
-        return ret;
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ff_formats_ref(formats, &outlink->in_formats);
 
     return 0;
 }
@@ -264,17 +268,21 @@ static int request_frame(AVFilterLink *outlink)
     unsigned i;
     int ret;
 
-    ret = ff_request_frame(inlink);
-    if (ret == AVERROR_EOF && s->sliding == FULLFRAME && s->xpos > 0 &&
-        s->outpicref) {
-        for (i = 0; i < outlink->h; i++) {
-            memset(s->outpicref->data[0] + i * s->outpicref->linesize[0] + s->xpos,   0, outlink->w - s->xpos);
-            memset(s->outpicref->data[1] + i * s->outpicref->linesize[1] + s->xpos, 128, outlink->w - s->xpos);
-            memset(s->outpicref->data[2] + i * s->outpicref->linesize[2] + s->xpos, 128, outlink->w - s->xpos);
+    s->req_fullfilled = 0;
+    do {
+        ret = ff_request_frame(inlink);
+        if (ret == AVERROR_EOF && s->sliding == FULLFRAME && s->xpos > 0 &&
+            s->outpicref) {
+            for (i = 0; i < outlink->h; i++) {
+                memset(s->outpicref->data[0] + i * s->outpicref->linesize[0] + s->xpos,   0, outlink->w - s->xpos);
+                memset(s->outpicref->data[1] + i * s->outpicref->linesize[1] + s->xpos, 128, outlink->w - s->xpos);
+                memset(s->outpicref->data[2] + i * s->outpicref->linesize[2] + s->xpos, 128, outlink->w - s->xpos);
+            }
+            ret = ff_filter_frame(outlink, s->outpicref);
+            s->outpicref = NULL;
+            s->req_fullfilled = 1;
         }
-        ret = ff_filter_frame(outlink, s->outpicref);
-        s->outpicref = NULL;
-    }
+    } while (!s->req_fullfilled && ret >= 0);
 
     return ret;
 }
@@ -386,7 +394,7 @@ static int plot_spectrum_column(AVFilterLink *inlink, AVFrame *insamples)
                 a = cbrt(a);
                 break;
             case LOG:
-                a = 1 + log10(FFMAX(FFMIN(1, a), 1e-6)) / 6; // zero = -120dBFS
+                a = 1 - log(FFMAX(FFMIN(1, a), 1e-6)) / log(1e-6); // zero = -120dBFS
                 break;
             default:
                 av_assert0(0);
@@ -460,6 +468,7 @@ static int plot_spectrum_column(AVFilterLink *inlink, AVFrame *insamples)
     if (s->xpos >= outlink->w)
         s->xpos = 0;
     if (s->sliding != FULLFRAME || s->xpos == 0) {
+        s->req_fullfilled = 1;
         ret = ff_filter_frame(outlink, av_frame_clone(s->outpicref));
         if (ret < 0)
             return ret;

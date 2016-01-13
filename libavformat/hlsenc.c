@@ -113,8 +113,6 @@ typedef struct HLSContext {
     char iv_string[KEYSIZE*2 + 1];
     AVDictionary *vtt_format_options;
 
-    char *method;
-
 } HLSContext;
 
 static int hls_delete_old_segments(HLSContext *hls) {
@@ -165,6 +163,12 @@ static int hls_delete_old_segments(HLSContext *hls) {
             ret = AVERROR(ENOMEM);
             goto fail;
         }
+        sub_path_size = strlen(dirname) + strlen(segment->sub_filename) + 1;
+        sub_path = av_malloc(sub_path_size);
+        if (!sub_path) {
+            ret = AVERROR(ENOMEM);
+            goto fail;
+        }
 
         av_strlcpy(path, dirname, path_size);
         av_strlcat(path, segment->filename, path_size);
@@ -173,23 +177,14 @@ static int hls_delete_old_segments(HLSContext *hls) {
                                      path, strerror(errno));
         }
 
-        if (segment->sub_filename[0] != '\0') {
-            sub_path_size = strlen(dirname) + strlen(segment->sub_filename) + 1;
-            sub_path = av_malloc(sub_path_size);
-            if (!sub_path) {
-                ret = AVERROR(ENOMEM);
-                goto fail;
-            }
-
-            av_strlcpy(sub_path, dirname, sub_path_size);
-            av_strlcat(sub_path, segment->sub_filename, sub_path_size);
-            if (unlink(sub_path) < 0) {
-                av_log(hls, AV_LOG_ERROR, "failed to delete old segment %s: %s\n",
-                                         sub_path, strerror(errno));
-            }
-            av_free(sub_path);
+        av_strlcpy(sub_path, dirname, sub_path_size);
+        av_strlcat(sub_path, segment->sub_filename, sub_path_size);
+        if (unlink(sub_path) < 0) {
+            av_log(hls, AV_LOG_ERROR, "failed to delete old segment %s: %s\n",
+                                     sub_path, strerror(errno));
         }
         av_freep(&path);
+        av_free(sub_path);
         previous_segment = segment;
         segment = previous_segment->next;
         av_free(previous_segment);
@@ -315,8 +310,6 @@ static int hls_append_segment(HLSContext *hls, double duration, int64_t pos,
 
     if(hls->has_subtitle)
         av_strlcpy(en->sub_filename, av_basename(hls->vtt_avf->filename), sizeof(en->sub_filename));
-    else
-        en->sub_filename[0] = '\0';
 
     en->duration = duration;
     en->pos      = pos;
@@ -365,12 +358,6 @@ static void hls_free_segments(HLSSegment *p)
     }
 }
 
-static void set_http_options(AVDictionary **options, HLSContext *c)
-{
-    if (c->method)
-        av_dict_set(options, "method", c->method, 0);
-}
-
 static int hls_window(AVFormatContext *s, int last)
 {
     HLSContext *hls = s->priv_data;
@@ -387,15 +374,13 @@ static int hls_window(AVFormatContext *s, int last)
     static unsigned warned_non_file;
     char *key_uri = NULL;
     char *iv_string = NULL;
-    AVDictionary *options = NULL;
 
     if (!use_rename && !warned_non_file++)
         av_log(s, AV_LOG_ERROR, "Cannot use rename on non file protocol, this may lead to races and temporarly partial files\n");
 
-    set_http_options(&options, hls);
     snprintf(temp_filename, sizeof(temp_filename), use_rename ? "%s.tmp" : "%s", s->filename);
     if ((ret = avio_open2(&out, temp_filename, AVIO_FLAG_WRITE,
-                          &s->interrupt_callback, &options)) < 0)
+                          &s->interrupt_callback, NULL)) < 0)
         goto fail;
 
     for (en = hls->segments; en; en = en->next) {
@@ -430,7 +415,7 @@ static int hls_window(AVFormatContext *s, int last)
         }
 
         if (hls->flags & HLS_ROUND_DURATIONS)
-            avio_printf(out, "#EXTINF:%ld,\n",  lrint(en->duration));
+            avio_printf(out, "#EXTINF:%d,\n",  (int)round(en->duration));
         else
             avio_printf(out, "#EXTINF:%f,\n", en->duration);
         if (hls->flags & HLS_SINGLE_FILE)
@@ -446,7 +431,7 @@ static int hls_window(AVFormatContext *s, int last)
 
     if( hls->vtt_m3u8_name ) {
         if ((ret = avio_open2(&sub_out, hls->vtt_m3u8_name, AVIO_FLAG_WRITE,
-                          &s->interrupt_callback, &options)) < 0)
+                          &s->interrupt_callback, NULL)) < 0)
             goto fail;
         avio_printf(sub_out, "#EXTM3U\n");
         avio_printf(sub_out, "#EXT-X-VERSION:%d\n", version);
@@ -475,7 +460,6 @@ static int hls_window(AVFormatContext *s, int last)
     }
 
 fail:
-    av_dict_free(&options);
     avio_closep(&out);
     avio_closep(&sub_out);
     if (ret >= 0 && use_rename)
@@ -523,24 +507,22 @@ static int hls_start(AVFormatContext *s)
     }
     c->number++;
 
-    set_http_options(&options, c);
-
     if (c->key_info_file) {
         if ((err = hls_encryption_start(s)) < 0)
-            goto fail;
+            return err;
         if ((err = av_dict_set(&options, "encryption_key", c->key_string, 0))
                 < 0)
-            goto fail;
+            return err;
         err = av_strlcpy(iv_string, c->iv_string, sizeof(iv_string));
         if (!err)
             snprintf(iv_string, sizeof(iv_string), "%032"PRIx64, c->sequence);
         if ((err = av_dict_set(&options, "encryption_iv", iv_string, 0)) < 0)
-           goto fail;
+            return err;
 
         filename = av_asprintf("crypto:%s", oc->filename);
         if (!filename) {
-            err = AVERROR(ENOMEM);
-            goto fail;
+            av_dict_free(&options);
+            return AVERROR(ENOMEM);
         }
         err = avio_open2(&oc->pb, filename, AVIO_FLAG_WRITE,
                          &s->interrupt_callback, &options);
@@ -550,38 +532,21 @@ static int hls_start(AVFormatContext *s)
             return err;
     } else
         if ((err = avio_open2(&oc->pb, oc->filename, AVIO_FLAG_WRITE,
-                          &s->interrupt_callback, &options)) < 0)
-            goto fail;
+                          &s->interrupt_callback, NULL)) < 0)
+            return err;
     if (c->vtt_basename) {
-        set_http_options(&options, c);
         if ((err = avio_open2(&vtt_oc->pb, vtt_oc->filename, AVIO_FLAG_WRITE,
-                         &s->interrupt_callback, &options)) < 0)
-            goto fail;
-    }
-    av_dict_free(&options);
-
-    /* We only require one PAT/PMT per segment. */
-    if (oc->oformat->priv_class && oc->priv_data) {
-        char period[21];
-
-        snprintf(period, sizeof(period), "%d", (INT_MAX / 2) - 1);
-
-        av_opt_set(oc->priv_data, "mpegts_flags", "resend_headers", 0);
-        av_opt_set(oc->priv_data, "sdt_period", period, 0);
-        av_opt_set(oc->priv_data, "pat_period", period, 0);
-    }
-
-    if (c->vtt_basename) {
-        err = avformat_write_header(vtt_oc,NULL);
-        if (err < 0)
+                         &s->interrupt_callback, NULL)) < 0)
             return err;
     }
 
-    return 0;
-fail:
-    av_dict_free(&options);
+    if (oc->oformat->priv_class && oc->priv_data)
+        av_opt_set(oc->priv_data, "mpegts_flags", "resend_headers", 0);
 
-    return err;
+    if (c->vtt_basename)
+        avformat_write_header(vtt_oc,NULL);
+
+    return 0;
 }
 
 static int hls_write_header(AVFormatContext *s)
@@ -874,8 +839,7 @@ static const AVOption options[] = {
     {"round_durations", "round durations in m3u8 to whole numbers", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_ROUND_DURATIONS }, 0, UINT_MAX,   E, "flags"},
     {"discont_start", "start the playlist with a discontinuity tag", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_DISCONT_START }, 0, UINT_MAX,   E, "flags"},
     {"omit_endlist", "Do not append an endlist when ending stream", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_OMIT_ENDLIST }, 0, UINT_MAX,   E, "flags"},
-    { "use_localtime", "set filename expansion with strftime at segment creation", OFFSET(use_localtime), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, E },
-    {"method", "set the HTTP method", OFFSET(method), AV_OPT_TYPE_STRING, {.str = NULL},  0, 0,    E},
+    { "use_localtime",          "set filename expansion with strftime at segment creation", OFFSET(use_localtime), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 1, E },
 
     { NULL },
 };

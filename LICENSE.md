@@ -85,7 +85,6 @@ compatible libraries
 The following libraries are under GPL:
 - frei0r
 - libcdio
-- librubberband
 - libutvideo
 - libvidstab
 - libx264
